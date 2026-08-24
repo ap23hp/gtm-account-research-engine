@@ -92,6 +92,25 @@ async function lookupCompany(companyName) {
     confidence: 'verified',
   };
 }
+// NEW: given an exact company_number (e.g. from a candidate the user
+// picked out of an ambiguous list), fetch and format its full profile -
+// the same shape lookupCompany() returns for a clean match.
+async function lookupByNumber(companyNumber) {
+  const profile = await getCompanyProfile(companyNumber);
+
+  return {
+    found: true,
+    ambiguous: false,
+    company_name: profile.company_name,
+    company_number: profile.company_number,
+    status: profile.company_status,
+    incorporated_on: profile.date_of_creation,
+    sic_codes: profile.sic_codes || [],
+    registered_address: profile.registered_office_address,
+    source: 'companies_house',
+    confidence: 'verified',
+  };
+}
 
 // NEW: searches for companies by SIC code and other criteria directly -
 // no company name involved at all, so no ambiguity problem. This is
@@ -134,4 +153,4 @@ async function searchByIndustry({ sicCodes, incorporatedFrom, size = 20 }) {
   }));
 }
 
-module.exports = { lookupCompany, searchByIndustry };
+module.exports = { lookupCompany, searchByIndustry, lookupByNumber };

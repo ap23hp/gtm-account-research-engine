@@ -1,7 +1,7 @@
 // server.js
 const express = require('express');
 const cors = require('cors');
-const { lookupCompany, searchByIndustry } = require('./companiesHouse');
+const { lookupCompany, searchByIndustry,lookupByNumber   } = require('./companiesHouse');
 const { scoreCompany } = require('./scoring');
 
 const app = express();
@@ -50,4 +50,18 @@ app.get('/api/search-industry', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`API server running at http://localhost:${PORT}`);
+});
+
+app.get('/api/lookup-by-number', async (req, res) => {
+  const companyNumber = req.query.number;
+  if (!companyNumber) {
+    return res.status(400).json({ error: 'Missing "number" query parameter' });
+  }
+  try {
+    const company = await lookupByNumber(companyNumber);
+    const scored = scoreCompany(company);
+    res.json({ company, scored });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
