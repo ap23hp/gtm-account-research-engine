@@ -92,4 +92,46 @@ async function lookupCompany(companyName) {
     confidence: 'verified',
   };
 }
-module.exports = { lookupCompany };
+
+// NEW: searches for companies by SIC code and other criteria directly -
+// no company name involved at all, so no ambiguity problem. This is
+// PROSPECTING (find new leads), separate from lookupCompany's job of
+// VERIFICATION (check a specific lead I already have).
+async function searchByIndustry({ sicCodes, incorporatedFrom, size = 20 }) {
+  const params = new URLSearchParams({
+    sic_codes: sicCodes.join(','),      // e.g. "62012,62020"
+    company_status: 'active',           // only active companies
+    size: size.toString(),
+  });
+
+  if (incorporatedFrom) {
+    params.append('incorporated_from', incorporatedFrom); // e.g. "2018-01-01"
+  }
+
+  const url = `${BASE_URL}/advanced-search/companies?${params.toString()}`;
+  const response = await fetch(url, { headers: authHeader() });
+
+  if (!response.ok) {
+    throw new Error(`Advanced search failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  // Reshape into the same clean format lookupCompany() uses, for
+  // consistency - anything downstream (like scoreCompany) works
+  // the same way regardless of which path found the company.
+  return data.items.map(item => ({
+    found: true,
+    ambiguous: false,
+    company_name: item.company_name,
+    company_number: item.company_number,
+    status: item.company_status,
+    incorporated_on: item.date_of_creation,
+    sic_codes: item.sic_codes || [],
+    registered_address: item.registered_office_address,
+    source: 'companies_house',
+    confidence: 'verified',
+  }));
+}
+
+module.exports = { lookupCompany, searchByIndustry };
