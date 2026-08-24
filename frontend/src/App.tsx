@@ -48,6 +48,12 @@ const INDUSTRY_OPTIONS = [
   { label: "Software publishing", sic: "58290" },
   { label: "IT consultancy", sic: "62020" },
   { label: "Data processing / hosting", sic: "63110" },
+  { label: "Computer facilities management", sic: "62030" },
+  { label: "Other IT/computer service activities", sic: "62090" },
+  { label: "Business & management consultancy", sic: "70229" },
+  { label: "Advertising agencies", sic: "73110" },
+  { label: "Market research & public opinion polling", sic: "73200" },
+  { label: "E-commerce / retail via internet", sic: "47910" },
 ];
 
 const inputStyle: React.CSSProperties = {
