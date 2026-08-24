@@ -17,7 +17,7 @@ function authHeader() {
 
 // STEP 1: search by name -> get a short list of possible matches
 async function searchCompany(companyName) {
-  const url = `${BASE_URL}/search/companies?q=${encodeURIComponent(companyName)}&items_per_page=5`;
+  const url = `${BASE_URL}/search/companies?q=${encodeURIComponent(companyName)}&items_per_page=20`;
   const response = await fetch(url, { headers: authHeader() });
 
   if (!response.ok) {
@@ -48,11 +48,40 @@ async function lookupCompany(companyName) {
     return { found: false, reason: 'No matching company found on Companies House' };
   }
 
-  const best = matches[0];
+  // NEW: filter to only active companies. Dissolved companies are
+  // almost never the one we meant to find.
+  const activeMatches = matches.filter(m => m.company_status === 'active');
+
+  if (activeMatches.length === 0) {
+    // Every match was dissolved/inactive - worth knowing, not a silent failure
+    return {
+      found: false,
+      reason: 'No active company found matching this name (only dissolved/inactive matches)',
+    };
+  }
+
+  if (activeMatches.length > 1) {
+    // NEW: genuine ambiguity - don't guess, flag it for human review
+    return {
+      found: true,
+      ambiguous: true,
+      confidence: 'ambiguous',
+      candidates: activeMatches.map(m => ({
+        company_name: m.title,
+        company_number: m.company_number,
+        address: m.address_snippet,
+      })),
+      reason: `${activeMatches.length} active companies match "${companyName}" - needs manual selection`,
+    };
+  }
+
+  // Exactly one active match - safe to auto-select
+  const best = activeMatches[0];
   const profile = await getCompanyProfile(best.company_number);
 
   return {
     found: true,
+    ambiguous: false,
     company_name: profile.company_name,
     company_number: profile.company_number,
     status: profile.company_status,
@@ -63,5 +92,4 @@ async function lookupCompany(companyName) {
     confidence: 'verified',
   };
 }
-
 module.exports = { lookupCompany };
