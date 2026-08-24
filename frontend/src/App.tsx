@@ -1,7 +1,7 @@
 import { useState } from "react";
 import "./App.css";
 
-const API_BASE = "http://localhost:3001";
+const API_BASE = "https://gtm-account-research-engine.onrender.com";
 
 type Candidate = {
   company_name: string;
