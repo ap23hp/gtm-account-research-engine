@@ -29,39 +29,35 @@ function scoreCompany(company) {
   }
   reasons.push("Active company (+required)");
 
-  // RULE 2: company age - 1-8 years old
-  const incorporationYear = new Date(company.incorporated_on).getFullYear();
-  const currentYear = new Date().getFullYear();
-  const ageInYears = currentYear - incorporationYear;
-
+  // RULE 2: company age
   if (ageInYears >= 1 && ageInYears <= 8) {
     score += 30;
-    reasons.push(`Company age ${ageInYears} years, in target range (+30)`);
-  } else {
-    reasons.push(`Company age ${ageInYears} years, outside target range (+0)`);
-  }
-
-  // RULE 3: SIC code matches target industries
-  const hasTargetSIC = (company.sic_codes || []).some((code) =>
-    TARGET_SIC_PREFIXES.some((prefix) => code.startsWith(prefix)),
-  );
-
-  if (hasTargetSIC) {
-    score += 25;
-    reasons.push("SIC code matches target industry (+25)");
+    reasons.push(
+      `Incorporated ${ageInYears} years ago, inside the 1–8 year band the ICP targets (+30).`,
+    );
   } else {
     reasons.push(
-      `SIC code ${company.sic_codes?.join(", ") || "none"} does not match target industries (+0)`,
+      `Incorporated ${ageInYears} years ago, outside the target age range (+0).`,
     );
   }
-  // RULE 4: UK-registered - guaranteed true for any Companies House
-  // result, since that's the entire scope of the register. We don't
-  // depend on the country field because Companies House data
-  // sometimes omits it even for genuine UK companies (a real gap
-  // we found through testing) - we know this is UK by definition
-  // of the data source, not by re-checking an unreliable field.
+
+  // RULE 3: SIC code
+  if (hasTargetSIC) {
+    score += 25;
+    reasons.push(
+      `SIC code ${company.sic_codes?.join(", ")} places it in a priority industry for this ICP (+25).`,
+    );
+  } else {
+    reasons.push(
+      `SIC code ${company.sic_codes?.join(", ") || "none listed"} falls outside the target industries (+0).`,
+    );
+  }
+
+  // RULE 4: UK-registered
   score += 15;
-  reasons.push("UK-registered (Companies House data, +15)");
+  reasons.push(
+    "Registered with UK Companies House, confirming it operates in the target territory (+15).",
+  );
 
   // Priority bands
   let priority;
@@ -73,7 +69,7 @@ function scoreCompany(company) {
   return {
     score,
     priority,
-    reasoning: reasons.join(" | "),
+    reasoning: reasons.join(" "),
   };
 }
 
