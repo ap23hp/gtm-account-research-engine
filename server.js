@@ -1,6 +1,7 @@
 // server.js
-const { initDb, saveLead, getLeadsByPriority, getAllLeads } = require('./db');
+const { initDb, saveLead, getLeadsByPriority, getAllLeads } = require("./db");
 const express = require("express");
+const { syncCompanyToHubspot } = require("./hubspot");
 const cors = require("cors");
 const {
   lookupCompany,
@@ -91,6 +92,21 @@ app.get("/api/leads", async (req, res) => {
   }
 });
 
+// NEW: push a scored company into HubSpot as a real Company record
+app.post("/api/sync-to-crm", async (req, res) => {
+  const { companyNumber } = req.body;
+  if (!companyNumber) {
+    return res.status(400).json({ error: "Missing companyNumber" });
+  }
+  try {
+    const company = await lookupByNumber(companyNumber);
+    const scored = scoreCompany(company);
+    const result = await syncCompanyToHubspot(company, scored);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 initDb().then(() => {
   app.listen(PORT, () => {

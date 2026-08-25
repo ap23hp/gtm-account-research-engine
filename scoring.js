@@ -30,6 +30,10 @@ function scoreCompany(company) {
   reasons.push("Active company (+required)");
 
   // RULE 2: company age
+  const incorporationYear = new Date(company.incorporated_on).getFullYear();
+  const currentYear = new Date().getFullYear();
+  const ageInYears = currentYear - incorporationYear;
+
   if (ageInYears >= 1 && ageInYears <= 8) {
     score += 30;
     reasons.push(
@@ -42,6 +46,10 @@ function scoreCompany(company) {
   }
 
   // RULE 3: SIC code
+  const hasTargetSIC = (company.sic_codes || []).some((code) =>
+    TARGET_SIC_PREFIXES.some((prefix) => code.startsWith(prefix)),
+  );
+
   if (hasTargetSIC) {
     score += 25;
     reasons.push(
