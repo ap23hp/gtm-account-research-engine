@@ -105,10 +105,16 @@ function App() {
   const [history, setHistory] = useState<Lead[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  // Load saved history once, when the app first opens
-useEffect(() => {
-  loadHistory();
-}, []);
+  const [syncStatus, setSyncStatus] = useState<{
+    success: boolean;
+    url?: string;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
   async function loadHistory() {
     try {
       const res = await fetch(`${API_BASE}/api/leads`);
@@ -124,6 +130,7 @@ useEffect(() => {
     setLoading(true);
     setError("");
     setResult(null);
+    setSyncStatus(null);
     try {
       const res = await fetch(
         `${API_BASE}/api/lookup?name=${encodeURIComponent(companyName)}`,
@@ -140,8 +147,32 @@ useEffect(() => {
     }
   }
 
+  async function handleSyncToCrm(companyNumber: string) {
+    setSyncStatus(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/sync-to-crm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyNumber }),
+      });
+      const data = await res.json();
+      if (data.synced) {
+        setSyncStatus({
+          success: true,
+          url: data.hubspot_url,
+          message: "Synced to HubSpot",
+        });
+      } else {
+        setSyncStatus({ success: false, message: data.error || "Sync failed" });
+      }
+    } catch {
+      setSyncStatus({ success: false, message: "Could not reach the server" });
+    }
+  }
+
   async function handlePickCandidate(companyNumber: string) {
     setLoading(true);
+    setSyncStatus(null);
     try {
       const res = await fetch(
         `${API_BASE}/api/lookup-by-number?number=${companyNumber}`,
@@ -174,6 +205,7 @@ useEffect(() => {
 
   async function handleRowClick(companyNumber: string) {
     setLoading(true);
+    setSyncStatus(null);
     try {
       const res = await fetch(
         `${API_BASE}/api/lookup-by-number?number=${companyNumber}`,
@@ -553,7 +585,7 @@ useEffect(() => {
                       </div>
                       <p
                         style={{
-                          margin: 0,
+                          margin: "0 0 20px",
                           fontSize: 15.5,
                           lineHeight: 1.65,
                           color: "#3b3e43",
@@ -561,6 +593,43 @@ useEffect(() => {
                       >
                         {result.scored.reasoning}
                       </p>
+                      <button
+                        onClick={() =>
+                          handleSyncToCrm(result.company.company_number!)
+                        }
+                        style={{ ...buttonSecondary, width: "100%" }}
+                      >
+                        Sync to CRM
+                      </button>
+                      {syncStatus && syncStatus.success && (
+                        <p
+                          style={{
+                            marginTop: 10,
+                            fontSize: 20,
+                            color: "#1a6b39",
+                          }}
+                        >
+                          Synced —{" "}
+                          <a
+                            href={syncStatus.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            view in HubSpot
+                          </a>
+                        </p>
+                      )}
+                      {syncStatus && !syncStatus.success && (
+                        <p
+                          style={{
+                            marginTop: 10,
+                            fontSize: 14,
+                            color: "#c0392b",
+                          }}
+                        >
+                          {syncStatus.message}
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
