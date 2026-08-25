@@ -1,4 +1,5 @@
 // server.js
+const { initDb, saveLead, getLeadsByPriority, getAllLeads } = require('./db');
 const express = require("express");
 const cors = require("cors");
 const {
@@ -9,9 +10,6 @@ const {
 const { scoreCompany } = require("./scoring");
 
 const app = express();
-// Render (and most hosts) assign their own port via process.env.PORT.
-// Falls back to 3001 for local development, where that variable
-// doesn't exist.
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
@@ -25,6 +23,11 @@ app.get("/api/lookup", async (req, res) => {
   try {
     const company = await lookupCompany(companyName);
     const scored = scoreCompany(company);
+
+    if (company.found && !company.ambiguous) {
+      await saveLead(company, scored);
+    }
+
     res.json({ company, scored });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -57,10 +60,6 @@ app.get("/api/search-industry", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`API server running at http://localhost:${PORT}`);
-});
-
 app.get("/api/lookup-by-number", async (req, res) => {
   const companyNumber = req.query.number;
   if (!companyNumber) {
@@ -69,8 +68,32 @@ app.get("/api/lookup-by-number", async (req, res) => {
   try {
     const company = await lookupByNumber(companyNumber);
     const scored = scoreCompany(company);
+
+    if (company.found && !company.ambiguous) {
+      await saveLead(company, scored);
+    }
+
     res.json({ company, scored });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// NEW: view search history - real SQL query behind this
+app.get("/api/leads", async (req, res) => {
+  try {
+    const leads = req.query.priority
+      ? await getLeadsByPriority(req.query.priority)
+      : await getAllLeads();
+    res.json({ leads });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+initDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`API server running at http://localhost:${PORT}`);
+  });
 });
