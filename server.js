@@ -3,6 +3,9 @@ const { initDb, saveLead, getLeadsByPriority, getAllLeads } = require("./db");
 const express = require("express");
 const { syncCompanyToHubspot } = require("./hubspot");
 const cors = require("cors");
+const { gatherEvidence } = require("./webResearch");
+const { generateSalesBrief } = require("./aiService");
+
 const {
   lookupCompany,
   searchByIndustry,
@@ -107,7 +110,38 @@ app.post("/api/sync-to-crm", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// NEW: full AI research pipeline - Companies House -> evidence -> sales brief
+app.post("/api/research", async (req, res) => {
+  const { companyNumber } = req.body;
+  if (!companyNumber) {
+    return res.status(400).json({ error: "Missing companyNumber" });
+  }
 
+  try {
+    // Step 1: verified company data (existing, working code)
+    const company = await lookupByNumber(companyNumber);
+    const scored = scoreCompany(company);
+
+    if (!company.found || company.ambiguous) {
+      return res
+        .status(400)
+        .json({ error: "Company must be a clean, resolved match to research" });
+    }
+
+    // Step 2: real, sourced evidence (new)
+    const evidence = await gatherEvidence(company.company_name);
+
+    // Step 3: structured sales brief, grounded in that evidence (new)
+    const brief = await generateSalesBrief(company, scored, evidence);
+
+    // Step 4: save everything - extending the existing leads table
+    await saveLead(company, scored);
+
+    res.json({ company, scored, evidence, brief });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`API server running at http://localhost:${PORT}`);
