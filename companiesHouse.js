@@ -2,7 +2,7 @@
 // Talks to the real UK Companies House API: search for a company,
 // then fetch its full profile.
 
-const BASE_URL = 'https://api.company-information.service.gov.uk';
+const BASE_URL = "https://api.company-information.service.gov.uk";
 
 // Reads our key from the .env file (Node loads this automatically
 // when we run with --env-file=.env)
@@ -11,7 +11,7 @@ const API_KEY = process.env.COMPANIES_HOUSE_API_KEY;
 // Companies House uses HTTP Basic Auth: our API key as the "username",
 // blank password. This encodes it the way the standard requires.
 function authHeader() {
-  const encoded = Buffer.from(`${API_KEY}:`).toString('base64');
+  const encoded = Buffer.from(`${API_KEY}:`).toString("base64");
   return { Authorization: `Basic ${encoded}` };
 }
 
@@ -45,28 +45,31 @@ async function lookupCompany(companyName) {
   const matches = await searchCompany(companyName);
 
   if (!matches || matches.length === 0) {
-    return { found: false, reason: 'No matching company found on Companies House' };
-  }
-
-  // NEW: filter to only active companies. Dissolved companies are
-  // almost never the one we meant to find.
-  const activeMatches = matches.filter(m => m.company_status === 'active');
-
-  if (activeMatches.length === 0) {
-    // Every match was dissolved/inactive - worth knowing, not a silent failure
     return {
       found: false,
-      reason: 'No active company found matching this name (only dissolved/inactive matches)',
+      reason: "No matching company found on Companies House",
+    };
+  }
+
+  // Filter to only active companies. Dissolved companies are
+  // almost never the one we meant to find.
+  const activeMatches = matches.filter((m) => m.company_status === "active");
+
+  if (activeMatches.length === 0) {
+    return {
+      found: false,
+      reason:
+        "No active company found matching this name (only dissolved/inactive matches)",
     };
   }
 
   if (activeMatches.length > 1) {
-    // NEW: genuine ambiguity - don't guess, flag it for human review
+    // Genuine ambiguity - don't guess, flag it for human review
     return {
       found: true,
       ambiguous: true,
-      confidence: 'ambiguous',
-      candidates: activeMatches.map(m => ({
+      confidence: "ambiguous",
+      candidates: activeMatches.map((m) => ({
         company_name: m.title,
         company_number: m.company_number,
         address: m.address_snippet,
@@ -88,11 +91,13 @@ async function lookupCompany(companyName) {
     incorporated_on: profile.date_of_creation,
     sic_codes: profile.sic_codes || [],
     registered_address: profile.registered_office_address,
-    source: 'companies_house',
-    confidence: 'verified',
+    source: "companies_house",
+    confidence: "verified",
+    company_type: profile.type,
   };
 }
-// NEW: given an exact company_number (e.g. from a candidate the user
+
+// Given an exact company_number (e.g. from a candidate the user
 // picked out of an ambiguous list), fetch and format its full profile -
 // the same shape lookupCompany() returns for a clean match.
 async function lookupByNumber(companyNumber) {
@@ -107,24 +112,25 @@ async function lookupByNumber(companyNumber) {
     incorporated_on: profile.date_of_creation,
     sic_codes: profile.sic_codes || [],
     registered_address: profile.registered_office_address,
-    source: 'companies_house',
-    confidence: 'verified',
+    source: "companies_house",
+    confidence: "verified",
+    company_type: profile.type,
   };
 }
 
-// NEW: searches for companies by SIC code and other criteria directly -
+// Searches for companies by SIC code and other criteria directly -
 // no company name involved at all, so no ambiguity problem. This is
 // PROSPECTING (find new leads), separate from lookupCompany's job of
 // VERIFICATION (check a specific lead I already have).
 async function searchByIndustry({ sicCodes, incorporatedFrom, size = 20 }) {
   const params = new URLSearchParams({
-    sic_codes: sicCodes.join(','),      // e.g. "62012,62020"
-    company_status: 'active',           // only active companies
+    sic_codes: sicCodes.join(","), // e.g. "62012,62020"
+    company_status: "active", // only active companies
     size: size.toString(),
   });
 
   if (incorporatedFrom) {
-    params.append('incorporated_from', incorporatedFrom); // e.g. "2018-01-01"
+    params.append("incorporated_from", incorporatedFrom); // e.g. "2018-01-01"
   }
 
   const url = `${BASE_URL}/advanced-search/companies?${params.toString()}`;
@@ -139,7 +145,7 @@ async function searchByIndustry({ sicCodes, incorporatedFrom, size = 20 }) {
   // Reshape into the same clean format lookupCompany() uses, for
   // consistency - anything downstream (like scoreCompany) works
   // the same way regardless of which path found the company.
-  return data.items.map(item => ({
+  return data.items.map((item) => ({
     found: true,
     ambiguous: false,
     company_name: item.company_name,
@@ -148,8 +154,9 @@ async function searchByIndustry({ sicCodes, incorporatedFrom, size = 20 }) {
     incorporated_on: item.date_of_creation,
     sic_codes: item.sic_codes || [],
     registered_address: item.registered_office_address,
-    source: 'companies_house',
-    confidence: 'verified',
+    source: "companies_house",
+    confidence: "verified",
+    company_type: item.type,
   }));
 }
 

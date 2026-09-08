@@ -91,22 +91,34 @@ function scoreCompany(company) {
     width: Math.round((sicPoints / MAX_FACTOR_POINTS) * 100),
   });
 
-  const ukPoints = 15;
-  score += ukPoints;
-  reasons.push(
-    "Registered with UK Companies House, confirming it operates in the target territory (+15).",
-  );
+  const isPrivateLimited = company.company_type === "ltd";
+  const typePoints = isPrivateLimited ? 10 : 0;
+
+  if (isPrivateLimited) {
+    score += 10;
+    reasons.push(
+      "Registered as a private limited company, the structure most B2B software buyers operate under (+10).",
+    );
+  } else {
+    reasons.push(
+      `Registered as "${company.company_type || "an unspecified type"}", outside the typical target structure (+0).`,
+    );
+  }
   factors.push({
-    label: "UK registration",
-    passed: true,
-    points: "+15",
-    width: Math.round((ukPoints / MAX_FACTOR_POINTS) * 100),
+    label: "Company legal structure",
+    passed: isPrivateLimited,
+    points: isPrivateLimited ? "+10" : "+0",
+    width: Math.round((typePoints / MAX_FACTOR_POINTS) * 100),
   });
 
+  reasons.push(
+    "All companies in this dataset are UK-registered by definition of the Companies House source, so this isn't scored separately.",
+  );
+
   let priority;
-  if (score >= 60) priority = "Priority A";
-  else if (score >= 40) priority = "Priority B";
-  else if (score >= 20) priority = "Nurture";
+  if (score >= 50) priority = "Priority A";
+  else if (score >= 30) priority = "Priority B";
+  else if (score >= 10) priority = "Nurture";
   else priority = "Reject";
 
   return {
