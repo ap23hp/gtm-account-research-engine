@@ -135,7 +135,7 @@ app.post("/api/research", async (req, res) => {
     const brief = await generateSalesBrief(company, scored, evidence);
 
     // Step 4: save everything - extending the existing leads table
-    await saveLead(company, scored);
+    await saveLead(company, scored, evidence, brief);
 
     res.json({ company, scored, evidence, brief });
   } catch (err) {
