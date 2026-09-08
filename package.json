@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
+    "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "pg": "^8.23.0"
