@@ -2,39 +2,57 @@
 // a fit the company is against a defined target profile (ICP).
 
 const TARGET_SIC_PREFIXES = ["62", "63", "58"];
-// 62xxx = computer programming/consultancy, 63xxx = information
-// service activities, 58xxx = publishing (includes software publishing)
+
+// Bar widths are scaled against this shared maximum (the largest
+// single factor, age = 30) so a factor worth fewer points visually
+// shows a shorter bar even when it "passed" - lets you compare the
+// relative weight of each criterion, not just pass/fail.
+const MAX_FACTOR_POINTS = 30;
 
 function scoreCompany(company) {
-  // Guard clause: if the company wasn't found or was ambiguous,
-  // there's nothing to score - return early.
   if (!company.found || company.ambiguous) {
     return {
       score: null,
       priority: "Needs Review",
       reasoning: company.reason || "Company data incomplete - cannot score",
+      factors: [],
     };
   }
 
   let score = 0;
   const reasons = [];
+  const factors = [];
 
-  // RULE 1: must be active - hard requirement
   if (company.status !== "active") {
     return {
       score: 0,
       priority: "Reject",
       reasoning: `Company status is "${company.status}", not active`,
+      factors: [
+        {
+          label: "Active status (required)",
+          passed: false,
+          points: "Fail",
+          width: 0,
+        },
+      ],
     };
   }
   reasons.push("Active company (+required)");
+  factors.push({
+    label: "Active status (required)",
+    passed: true,
+    points: "Pass",
+    width: 100,
+  });
 
-  // RULE 2: company age
   const incorporationYear = new Date(company.incorporated_on).getFullYear();
   const currentYear = new Date().getFullYear();
   const ageInYears = currentYear - incorporationYear;
+  const agePass = ageInYears >= 1 && ageInYears <= 8;
+  const agePoints = agePass ? 30 : 0;
 
-  if (ageInYears >= 1 && ageInYears <= 8) {
+  if (agePass) {
     score += 30;
     reasons.push(
       `Incorporated ${ageInYears} years ago, inside the 1–8 year band the ICP targets (+30).`,
@@ -44,11 +62,17 @@ function scoreCompany(company) {
       `Incorporated ${ageInYears} years ago, outside the target age range (+0).`,
     );
   }
+  factors.push({
+    label: "Company age, 1-8 year band",
+    passed: agePass,
+    points: agePass ? "+30" : "+0",
+    width: Math.round((agePoints / MAX_FACTOR_POINTS) * 100),
+  });
 
-  // RULE 3: SIC code
   const hasTargetSIC = (company.sic_codes || []).some((code) =>
     TARGET_SIC_PREFIXES.some((prefix) => code.startsWith(prefix)),
   );
+  const sicPoints = hasTargetSIC ? 25 : 0;
 
   if (hasTargetSIC) {
     score += 25;
@@ -60,14 +84,25 @@ function scoreCompany(company) {
       `SIC code ${company.sic_codes?.join(", ") || "none listed"} falls outside the target industries (+0).`,
     );
   }
+  factors.push({
+    label: "SIC industry match",
+    passed: hasTargetSIC,
+    points: hasTargetSIC ? "+25" : "+0",
+    width: Math.round((sicPoints / MAX_FACTOR_POINTS) * 100),
+  });
 
-  // RULE 4: UK-registered
-  score += 15;
+  const ukPoints = 15;
+  score += ukPoints;
   reasons.push(
     "Registered with UK Companies House, confirming it operates in the target territory (+15).",
   );
+  factors.push({
+    label: "UK registration",
+    passed: true,
+    points: "+15",
+    width: Math.round((ukPoints / MAX_FACTOR_POINTS) * 100),
+  });
 
-  // Priority bands
   let priority;
   if (score >= 60) priority = "Priority A";
   else if (score >= 40) priority = "Priority B";
@@ -78,6 +113,7 @@ function scoreCompany(company) {
     score,
     priority,
     reasoning: reasons.join(" "),
+    factors,
   };
 }
 
