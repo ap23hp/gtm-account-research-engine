@@ -63,6 +63,8 @@ type Lead = {
   priority: string;
   searched_at: string;
   source?: string;
+  evidence?: { signals: Signal[] } | null;
+  brief?: Brief | null;
 };
 
 const INDUSTRY_OPTIONS = [
@@ -175,25 +177,10 @@ function ScoreGauge({ score }: { score: number | null }) {
   );
 }
 
-function AutomationBadge() {
-  return (
-    <span
-      style={{
-        padding: "2px 8px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 600,
-        background: "#e0e7ff",
-        color: "#3730a3",
-      }}
-    >
-      via automation
-    </span>
-  );
-}
-
 export default function App() {
-  const [mode, setMode] = useState<"search" | "prospects">("search");
+  const [mode, setMode] = useState<"search" | "prospects" | "automated">(
+    "search",
+  );
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -216,8 +203,11 @@ export default function App() {
   const [prospects, setProspects] = useState<ProspectRow[]>([]);
   const [prospectsLoading, setProspectsLoading] = useState(false);
 
-  const [history, setHistory] = useState<Lead[]>([]);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  const history = allLeads.filter((l) => l.source !== "webhook");
+  const automatedLeads = allLeads.filter((l) => l.source === "webhook");
 
   useEffect(() => {
     loadHistory();
@@ -227,7 +217,7 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE}/api/leads`);
       const data = await res.json();
-      setHistory(data.leads || []);
+      setAllLeads(data.leads || []);
     } catch {
       /* silent */
     }
@@ -263,24 +253,38 @@ export default function App() {
     }
   }
 
-  async function openByNumber(companyNumber: string, companyName?: string, skipSave = false) {
-  resetResult();
-  setLoading(true);
-  setMode("search");
-  if (companyName) setQuery(companyName);
-  try {
-    const url = skipSave
-      ? `${API_BASE}/api/lookup-by-number?number=${companyNumber}&skipSave=true`
-      : `${API_BASE}/api/lookup-by-number?number=${companyNumber}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    setCompany(data.company); setScored(data.scored);
-    if (data.company?.company_name) setQuery(data.company.company_name);
-    loadHistory();
-  } catch {
-    setError("Could not reach the server.");
-  } finally { setLoading(false); }
-}
+  async function openByNumber(
+    companyNumber: string,
+    companyName?: string,
+    skipSave = false,
+    cachedLead?: Lead,
+  ) {
+    resetResult();
+    setLoading(true);
+    setMode("search");
+    if (companyName) setQuery(companyName);
+    try {
+      const url = skipSave
+        ? `${API_BASE}/api/lookup-by-number?number=${companyNumber}&skipSave=true`
+        : `${API_BASE}/api/lookup-by-number?number=${companyNumber}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      setCompany(data.company);
+      setScored(data.scored);
+      if (data.company?.company_name) setQuery(data.company.company_name);
+
+      if (cachedLead?.evidence?.signals)
+        setSignals(cachedLead.evidence.signals);
+      if (cachedLead?.brief) setBrief(cachedLead.brief);
+
+      loadHistory();
+    } catch {
+      setError("Could not reach the server.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function runResearch() {
     if (!company?.company_number) return;
     setResearching(true);
@@ -385,6 +389,13 @@ export default function App() {
           >
             Find prospects
           </button>
+          <button
+            className={`nav-btn ${mode === "automated" ? "active" : ""}`}
+            onClick={() => setMode("automated")}
+          >
+            Automated leads{" "}
+            {automatedLeads.length > 0 && `(${automatedLeads.length})`}
+          </button>
         </nav>
         <div className="nav-footnote">
           <div
@@ -456,19 +467,107 @@ export default function App() {
                   className={`mode-tab ${mode === "search" ? "active" : ""}`}
                   onClick={() => setMode("search")}
                 >
-                  Search a company
+                  Search
                 </button>
                 <button
                   className={`mode-tab ${mode === "prospects" ? "active" : ""}`}
                   onClick={() => setMode("prospects")}
                 >
-                  Find prospects
+                  Prospects
+                </button>
+                <button
+                  className={`mode-tab ${mode === "automated" ? "active" : ""}`}
+                  onClick={() => setMode("automated")}
+                >
+                  Automated
                 </button>
               </div>
             </div>
 
             {error && (
               <p style={{ color: "var(--error)", fontSize: 16 }}>{error}</p>
+            )}
+
+            {mode === "automated" && (
+              <section className="card">
+                <h2
+                  style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 600 }}
+                >
+                  Automated leads
+                </h2>
+                <p
+                  style={{
+                    margin: "0 0 18px",
+                    fontSize: 15,
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  These companies were researched and scored automatically —
+                  triggered by an external workflow (n8n) calling this app's
+                  webhook, with no one clicking "Search" or "Research" by hand.
+                  Only a specific, already-known company number can trigger this
+                  — never an ambiguous name, so nothing here was ever guessed.
+                </p>
+                {automatedLeads.length === 0 ? (
+                  <p style={{ fontSize: 15, color: "var(--text-muted)" }}>
+                    No automated leads yet.
+                  </p>
+                ) : (
+                  <div
+                    className="prospect-table-wrap"
+                    style={{
+                      border: "1px solid var(--border-light)",
+                      borderRadius: 12,
+                    }}
+                  >
+                    <table className="prospect-table">
+                      <thead>
+                        <tr>
+                          <th>Company</th>
+                          <th>Priority</th>
+                          <th>Score</th>
+                          <th style={{ textAlign: "right" }}>Received</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {automatedLeads.map((l) => (
+                          <tr
+                            key={l.id}
+                            onClick={() =>
+                              openByNumber(
+                                l.company_number,
+                                l.company_name,
+                                true,
+                                l,
+                              )
+                            }
+                          >
+                            <td style={{ fontWeight: 600 }}>
+                              {l.company_name}
+                            </td>
+                            <td>
+                              <span
+                                className={`badge ${priorityClass(l.priority)}`}
+                              >
+                                {l.priority}
+                              </span>
+                            </td>
+                            <td>{l.score}</td>
+                            <td
+                              style={{
+                                textAlign: "right",
+                                color: "var(--text-secondary)",
+                              }}
+                            >
+                              {new Date(l.searched_at).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
             )}
 
             {mode === "prospects" && (
@@ -786,7 +885,11 @@ export default function App() {
                           onClick={runResearch}
                           disabled={researching}
                         >
-                          {researching ? "Researching…" : "Research"}
+                          {researching
+                            ? "Researching…"
+                            : signals
+                              ? "Re-run research"
+                              : "Research"}
                         </button>
                         {canSync && (
                           <button className="btn-primary" onClick={syncToCrm}>
@@ -1242,7 +1345,9 @@ export default function App() {
                 <div
                   key={h.id}
                   className="history-item"
-                  onClick={() => openByNumber(h.company_number, h.company_name,true)}
+                  onClick={() =>
+                    openByNumber(h.company_number, h.company_name, true, h)
+                  }
                 >
                   <div>{h.company_name}</div>
                   <div
@@ -1259,7 +1364,6 @@ export default function App() {
                     <span style={{ fontSize: 14, color: "var(--text-muted)" }}>
                       {h.score}
                     </span>
-                    {h.source === "webhook" && <AutomationBadge />}
                   </div>
                 </div>
               ))
@@ -1328,20 +1432,11 @@ export default function App() {
                 key={h.id}
                 className="history-item"
                 onClick={() => {
-                  openByNumber(h.company_number, h.company_name,true);
+                  openByNumber(h.company_number, h.company_name, true, h);
                   setHistoryOpen(false);
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div style={{ fontSize: 16 }}>{h.company_name}</div>
-                  {h.source === "webhook" && <AutomationBadge />}
-                </div>
+                <div style={{ fontSize: 16 }}>{h.company_name}</div>
                 <span className={`badge ${priorityClass(h.priority)}`}>
                   {h.priority}
                 </span>
