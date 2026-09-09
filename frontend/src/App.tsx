@@ -263,27 +263,24 @@ export default function App() {
     }
   }
 
-  async function openByNumber(companyNumber: string, companyName?: string) {
-    resetResult();
-    setLoading(true);
-    setMode("search");
-    if (companyName) setQuery(companyName);
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/lookup-by-number?number=${companyNumber}`,
-      );
-      const data = await res.json();
-      setCompany(data.company);
-      setScored(data.scored);
-      if (data.company?.company_name) setQuery(data.company.company_name);
-      loadHistory();
-    } catch {
-      setError("Could not reach the server.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  async function openByNumber(companyNumber: string, companyName?: string, skipSave = false) {
+  resetResult();
+  setLoading(true);
+  setMode("search");
+  if (companyName) setQuery(companyName);
+  try {
+    const url = skipSave
+      ? `${API_BASE}/api/lookup-by-number?number=${companyNumber}&skipSave=true`
+      : `${API_BASE}/api/lookup-by-number?number=${companyNumber}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    setCompany(data.company); setScored(data.scored);
+    if (data.company?.company_name) setQuery(data.company.company_name);
+    loadHistory();
+  } catch {
+    setError("Could not reach the server.");
+  } finally { setLoading(false); }
+}
   async function runResearch() {
     if (!company?.company_number) return;
     setResearching(true);
@@ -1245,7 +1242,7 @@ export default function App() {
                 <div
                   key={h.id}
                   className="history-item"
-                  onClick={() => openByNumber(h.company_number, h.company_name)}
+                  onClick={() => openByNumber(h.company_number, h.company_name,true)}
                 >
                   <div>{h.company_name}</div>
                   <div
@@ -1331,7 +1328,7 @@ export default function App() {
                 key={h.id}
                 className="history-item"
                 onClick={() => {
-                  openByNumber(h.company_number, h.company_name);
+                  openByNumber(h.company_number, h.company_name,true);
                   setHistoryOpen(false);
                 }}
               >

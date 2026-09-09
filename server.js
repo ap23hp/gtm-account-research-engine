@@ -66,6 +66,7 @@ app.get("/api/search-industry", async (req, res) => {
 
 app.get("/api/lookup-by-number", async (req, res) => {
   const companyNumber = req.query.number;
+  const skipSave = req.query.skipSave === "true";
   if (!companyNumber) {
     return res.status(400).json({ error: 'Missing "number" query parameter' });
   }
@@ -73,7 +74,7 @@ app.get("/api/lookup-by-number", async (req, res) => {
     const company = await lookupByNumber(companyNumber);
     const scored = scoreCompany(company);
 
-    if (company.found && !company.ambiguous) {
+    if (company.found && !company.ambiguous && !skipSave) {
       await saveLead(company, scored);
     }
 
