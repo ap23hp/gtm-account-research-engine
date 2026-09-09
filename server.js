@@ -83,7 +83,7 @@ app.get("/api/lookup-by-number", async (req, res) => {
   }
 });
 
-// NEW: view search history - real SQL query behind this
+// View search history - real SQL query behind this
 app.get("/api/leads", async (req, res) => {
   try {
     const leads = req.query.priority
@@ -95,7 +95,7 @@ app.get("/api/leads", async (req, res) => {
   }
 });
 
-// NEW: push a scored company into HubSpot as a real Company record
+// Push a scored company into HubSpot as a real Company record
 app.post("/api/sync-to-crm", async (req, res) => {
   const { companyNumber } = req.body;
   if (!companyNumber) {
@@ -110,7 +110,9 @@ app.post("/api/sync-to-crm", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// NEW: full AI research pipeline - Companies House -> evidence -> sales brief
+
+// Full AI research pipeline - Companies House -> evidence -> sales brief
+// Triggered manually by the user clicking "Research" in the UI
 app.post("/api/research", async (req, res) => {
   const { companyNumber } = req.body;
   if (!companyNumber) {
@@ -118,7 +120,6 @@ app.post("/api/research", async (req, res) => {
   }
 
   try {
-    // Step 1: verified company data (existing, working code)
     const company = await lookupByNumber(companyNumber);
     const scored = scoreCompany(company);
 
@@ -128,13 +129,9 @@ app.post("/api/research", async (req, res) => {
         .json({ error: "Company must be a clean, resolved match to research" });
     }
 
-    // Step 2: real, sourced evidence (new)
     const evidence = await gatherEvidence(company.company_name);
-
-    // Step 3: structured sales brief, grounded in that evidence (new)
     const brief = await generateSalesBrief(company, scored, evidence);
 
-    // Step 4: save everything - extending the existing leads table
     await saveLead(company, scored, evidence, brief);
 
     res.json({ company, scored, evidence, brief });
@@ -142,8 +139,9 @@ app.post("/api/research", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// NEW: webhook receiver - lets an external tool (like n8n) trigger
-// a full research run automatically, without a human clicking anything
+
+// Webhook receiver - lets an external tool (like n8n) trigger a full
+// research run automatically, without a human clicking anything
 app.post("/api/webhook/new-lead", async (req, res) => {
   const { companyNumber } = req.body;
   if (!companyNumber) {
@@ -162,7 +160,7 @@ app.post("/api/webhook/new-lead", async (req, res) => {
 
     const evidence = await gatherEvidence(company.company_name);
     const brief = await generateSalesBrief(company, scored, evidence);
-    await saveLead(company, scored, evidence, brief);
+    await saveLead(company, scored, evidence, brief, "webhook");
 
     res.json({ received: true, company, scored, evidence, brief });
   } catch (err) {

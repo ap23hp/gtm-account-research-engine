@@ -62,6 +62,7 @@ type Lead = {
   score: number | null;
   priority: string;
   searched_at: string;
+  source?: string;
 };
 
 const INDUSTRY_OPTIONS = [
@@ -171,6 +172,23 @@ function ScoreGauge({ score }: { score: number | null }) {
         of 100
       </text>
     </svg>
+  );
+}
+
+function AutomationBadge() {
+  return (
+    <span
+      style={{
+        padding: "2px 8px",
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 600,
+        background: "#e0e7ff",
+        color: "#3730a3",
+      }}
+    >
+      via automation
+    </span>
   );
 }
 
@@ -829,9 +847,10 @@ export default function App() {
                     <div style={{ paddingTop: 22 }}>
                       <h3
                         style={{
-                          margin: "0 0 16px",
-                          fontSize: 17,
-                          fontWeight: 600,
+                          margin: "0 0 18px",
+                          fontSize: 19,
+                          fontWeight: 700,
+                          color: "var(--text)",
                         }}
                       >
                         ICP score breakdown
@@ -840,7 +859,7 @@ export default function App() {
                         style={{
                           display: "flex",
                           flexDirection: "column",
-                          gap: 18,
+                          gap: 20,
                         }}
                       >
                         {(scored.factors || []).map((f, i) => (
@@ -849,17 +868,24 @@ export default function App() {
                               style={{
                                 display: "flex",
                                 justifyContent: "space-between",
-                                marginBottom: 6,
-                                fontSize: 15,
+                                marginBottom: 8,
+                                fontSize: 17,
                               }}
                             >
-                              <span>{f.label}</span>
                               <span
                                 style={{
-                                  fontWeight: 600,
+                                  color: "var(--text)",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {f.label}
+                              </span>
+                              <span
+                                style={{
+                                  fontWeight: 700,
                                   color: f.passed
                                     ? "var(--priority-a-fg)"
-                                    : "var(--text-muted)",
+                                    : "var(--text)",
                                 }}
                               >
                                 {f.points}
@@ -879,36 +905,46 @@ export default function App() {
                           </div>
                         ))}
                         {(!scored.factors || scored.factors.length === 0) && (
-                          <p
-                            style={{ fontSize: 14, color: "var(--text-muted)" }}
-                          >
+                          <p style={{ fontSize: 16, color: "var(--text)" }}>
                             No factor breakdown available for this result.
                           </p>
                         )}
                       </div>
 
+                      <p
+                        style={{
+                          marginTop: 20,
+                          fontSize: 16.5,
+                          lineHeight: 1.7,
+                          color: "var(--text)",
+                        }}
+                      >
+                        {scored.reasoning}
+                      </p>
+
                       <div
                         style={{
-                          marginTop: 24,
-                          paddingTop: 20,
-                          borderTop: "1px solid var(--border-light)",
+                          marginTop: 28,
+                          paddingTop: 24,
+                          borderTop: "1.5px solid var(--border)",
                         }}
                       >
                         <h3
                           style={{
-                            margin: "0 0 8px",
-                            fontSize: 16,
-                            fontWeight: 600,
+                            margin: "0 0 10px",
+                            fontSize: 18,
+                            fontWeight: 700,
+                            color: "var(--text)",
                           }}
                         >
                           Register record
                         </h3>
                         <p
                           style={{
-                            margin: "0 0 16px",
-                            fontSize: 14,
-                            color: "var(--text-secondary)",
-                            lineHeight: 1.5,
+                            margin: "0 0 18px",
+                            fontSize: 16,
+                            color: "var(--text)",
+                            lineHeight: 1.6,
                           }}
                         >
                           Every field on this card comes from the Companies
@@ -920,36 +956,36 @@ export default function App() {
                           style={{
                             display: "flex",
                             flexDirection: "column",
-                            gap: 10,
+                            gap: 12,
                           }}
                         >
                           <div
                             style={{
                               display: "flex",
                               justifyContent: "space-between",
-                              fontSize: 15,
-                              paddingBottom: 8,
-                              borderBottom: "1px solid var(--border-light)",
+                              fontSize: 17,
+                              paddingBottom: 10,
+                              borderBottom: "1px solid var(--border)",
                             }}
                           >
-                            <span style={{ color: "var(--text-secondary)" }}>
-                              Status
-                            </span>
-                            <strong>{company.status}</strong>
+                            <span style={{ color: "var(--text)" }}>Status</span>
+                            <strong style={{ color: "var(--text)" }}>
+                              {company.status}
+                            </strong>
                           </div>
                           <div
                             style={{
                               display: "flex",
                               justifyContent: "space-between",
-                              fontSize: 15,
-                              paddingBottom: 8,
-                              borderBottom: "1px solid var(--border-light)",
+                              fontSize: 17,
+                              paddingBottom: 10,
+                              borderBottom: "1px solid var(--border)",
                             }}
                           >
-                            <span style={{ color: "var(--text-secondary)" }}>
+                            <span style={{ color: "var(--text)" }}>
                               Company age
                             </span>
-                            <strong>
+                            <strong style={{ color: "var(--text)" }}>
                               {company.incorporated_on
                                 ? new Date().getFullYear() -
                                   new Date(
@@ -1212,13 +1248,21 @@ export default function App() {
                   onClick={() => openByNumber(h.company_number, h.company_name)}
                 >
                   <div>{h.company_name}</div>
-                  <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      marginTop: 6,
+                      alignItems: "center",
+                    }}
+                  >
                     <span className={`badge ${priorityClass(h.priority)}`}>
                       {h.priority}
                     </span>
                     <span style={{ fontSize: 14, color: "var(--text-muted)" }}>
                       {h.score}
                     </span>
+                    {h.source === "webhook" && <AutomationBadge />}
                   </div>
                 </div>
               ))
@@ -1291,7 +1335,16 @@ export default function App() {
                   setHistoryOpen(false);
                 }}
               >
-                <div style={{ fontSize: 16 }}>{h.company_name}</div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontSize: 16 }}>{h.company_name}</div>
+                  {h.source === "webhook" && <AutomationBadge />}
+                </div>
                 <span className={`badge ${priorityClass(h.priority)}`}>
                   {h.priority}
                 </span>

@@ -28,14 +28,22 @@ async function initDb() {
   // adds the new columns without losing existing data.
   await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS evidence JSONB`);
   await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS brief JSONB`);
-
+  await pool.query(
+    `ALTER TABLE leads ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'manual'`,
+  );
   console.log("Database ready");
 }
 
-async function saveLead(company, scored, evidence = null, brief = null) {
+async function saveLead(
+  company,
+  scored,
+  evidence = null,
+  brief = null,
+  source = "manual",
+) {
   await pool.query(
-    `INSERT INTO leads (company_name, company_number, status, incorporated_on, sic_codes, score, priority, reasoning, evidence, brief)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    `INSERT INTO leads (company_name, company_number, status, incorporated_on, sic_codes, score, priority, reasoning, evidence, brief, source)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
       company.company_name || "Unknown",
       company.company_number || null,
@@ -47,6 +55,7 @@ async function saveLead(company, scored, evidence = null, brief = null) {
       scored.reasoning,
       evidence ? JSON.stringify(evidence) : null,
       brief ? JSON.stringify(brief) : null,
+      source,
     ],
   );
 }
