@@ -142,6 +142,34 @@ app.post("/api/research", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// NEW: webhook receiver - lets an external tool (like n8n) trigger
+// a full research run automatically, without a human clicking anything
+app.post("/api/webhook/new-lead", async (req, res) => {
+  const { companyNumber } = req.body;
+  if (!companyNumber) {
+    return res.status(400).json({ error: "Missing companyNumber" });
+  }
+
+  try {
+    const company = await lookupByNumber(companyNumber);
+    const scored = scoreCompany(company);
+
+    if (!company.found || company.ambiguous) {
+      return res
+        .status(400)
+        .json({ error: "Company must be a clean, resolved match" });
+    }
+
+    const evidence = await gatherEvidence(company.company_name);
+    const brief = await generateSalesBrief(company, scored, evidence);
+    await saveLead(company, scored, evidence, brief);
+
+    res.json({ received: true, company, scored, evidence, brief });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`API server running at http://localhost:${PORT}`);
