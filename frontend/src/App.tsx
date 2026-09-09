@@ -381,18 +381,21 @@ export default function App() {
             className={`nav-btn ${mode === "search" ? "active" : ""}`}
             onClick={() => setMode("search")}
           >
+            <span className="nav-dot" />
             Search a company
           </button>
           <button
             className={`nav-btn ${mode === "prospects" ? "active" : ""}`}
             onClick={() => setMode("prospects")}
           >
+            <span className="nav-dot" />
             Find prospects
           </button>
           <button
             className={`nav-btn ${mode === "automated" ? "active" : ""}`}
             onClick={() => setMode("automated")}
           >
+            <span className="nav-dot" />
             Automated leads{" "}
             {automatedLeads.length > 0 && `(${automatedLeads.length})`}
           </button>
@@ -402,13 +405,14 @@ export default function App() {
             style={{
               color: "#fff",
               fontWeight: 600,
-              fontSize: 14,
+              fontSize: 16,
               marginBottom: 5,
             }}
           >
-            Built for GTM
+            No hallucinated leads. Ever.
           </div>
-          Companies House, verified signals and an AI brief. Nothing else.
+          Real government data, real AI research, real CRM sync - nothing
+          simulated, nothing guessed.
         </div>
       </aside>
 
