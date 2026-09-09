@@ -4,7 +4,7 @@
 // evidence" step - deliberately separate from webResearch.js
 // (which only "collects evidence"). Claude is NOT allowed to
 // invent facts here - it can only reason over what we give it.
-
+const { validateBrief } = require('./validation');
 const Anthropic = require("@anthropic-ai/sdk");
 
 const client = new Anthropic({
@@ -60,10 +60,17 @@ Rules:
     return { error: "No response from Claude" };
   }
 
-  try {
-    const cleaned = textBlock.text.replace(/```json\n?|```\n?/g, "").trim();
-    return JSON.parse(cleaned);
-  } catch (err) {
+try {
+  const cleaned = textBlock.text.replace(/```json\n?|```\n?/g, '').trim();
+  const parsed = JSON.parse(cleaned);
+
+  const validation = validateBrief(parsed);
+  if (!validation.valid) {
+    return { error: `Validation failed: ${validation.reason}`, validation_failed: true };
+  }
+
+  return parsed;
+} catch (err) {
     return {
       error: `Could not parse brief: ${err.message}`,
       raw: textBlock.text,

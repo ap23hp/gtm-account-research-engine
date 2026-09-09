@@ -4,7 +4,7 @@
 // the "collect evidence" step, deliberately separate from the
 // "interpret evidence" step (that's aiService.js) - research stays
 // honest: we gather facts here, we don't judge them.
-
+const { validateSignal } = require('./validation');
 const Anthropic = require("@anthropic-ai/sdk");
 
 const client = new Anthropic({
@@ -64,11 +64,27 @@ false and empty is a correct, honest answer when nothing real is found.`,
     const cleaned = textBlock.text.replace(/```json\n?|```\n?/g, "").trim();
     const parsed = JSON.parse(cleaned);
 
-    return {
+    const result = {
       type: signalType,
       ...parsed,
       source: "claude_search",
     };
+
+    const validation = validateSignal(result);
+    if (!validation.valid) {
+      return {
+        type: signalType,
+        found: false,
+        claim: null,
+        source_url: null,
+        date: null,
+        source: "claude_search",
+        validation_failed: true,
+        error: `Validation failed: ${validation.reason}`,
+      };
+    }
+
+    return result;
   } catch (err) {
     return {
       type: signalType,
