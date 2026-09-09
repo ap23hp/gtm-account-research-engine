@@ -189,6 +189,10 @@ export default function App() {
   const [scored, setScored] = useState<Scored | null>(null);
   const [tab, setTab] = useState<"overview" | "signals" | "brief">("overview");
 
+  const [lastAmbiguous, setLastAmbiguous] = useState<CompanyResult | null>(
+    null,
+  );
+
   const [researching, setResearching] = useState(false);
   const [signals, setSignals] = useState<Signal[] | null>(null);
   const [brief, setBrief] = useState<Brief | null>(null);
@@ -233,6 +237,12 @@ export default function App() {
     setError("");
   }
 
+  function clearSearch() {
+    setQuery("");
+    resetResult();
+    setLastAmbiguous(null);
+  }
+
   async function runSearch() {
     if (!query.trim()) return;
     setMode("search");
@@ -245,12 +255,23 @@ export default function App() {
       const data = await res.json();
       setCompany(data.company);
       setScored(data.scored);
+      if (data.company?.ambiguous) setLastAmbiguous(data.company);
       loadHistory();
     } catch {
       setError("Could not reach the server.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function backToMatches() {
+    if (!lastAmbiguous) return;
+    setCompany(lastAmbiguous);
+    setScored(null);
+    setSignals(null);
+    setBrief(null);
+    setSyncStatus(null);
+    setTab("overview");
   }
 
   async function openByNumber(
@@ -350,6 +371,12 @@ export default function App() {
   const showResult = mode === "search" && company?.found && !company.ambiguous;
   const canSync =
     scored?.priority === "Priority A" || scored?.priority === "Priority B";
+  const canGoBack =
+    showResult &&
+    lastAmbiguous &&
+    lastAmbiguous.candidates?.some(
+      (c) => c.company_number === company?.company_number,
+    );
 
   return (
     <div className="page">
@@ -405,13 +432,13 @@ export default function App() {
             style={{
               color: "#fff",
               fontWeight: 600,
-              fontSize: 16,
+              fontSize: 14,
               marginBottom: 5,
             }}
           >
             No hallucinated leads. Ever.
           </div>
-          Real government data, real AI research, real CRM sync - nothing
+          Real government data, real AI research, real CRM sync — nothing
           simulated, nothing guessed.
         </div>
       </aside>
@@ -442,6 +469,9 @@ export default function App() {
               disabled={loading}
             >
               {loading ? "Searching…" : "Search"}
+            </button>
+            <button className="btn-secondary" onClick={clearSearch}>
+              Clear
             </button>
           </div>
           <div className="avatar">AP</div>
@@ -750,6 +780,23 @@ export default function App() {
             {showResult && company && scored && (
               <>
                 <section className="card">
+                  {canGoBack && (
+                    <button
+                      onClick={backToMatches}
+                      style={{
+                        marginBottom: 16,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "var(--accent)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      ← Back to matches
+                    </button>
+                  )}
                   <div
                     style={{
                       display: "flex",
