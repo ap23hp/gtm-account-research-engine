@@ -24,13 +24,13 @@ This tool automates that entire loop - enrichment, ICP scoring, evidence-backed 
 - **AI sales brief** - a structured summary (why now, likely contact, outreach angle, confidence) generated *only* from the verified data and evidence already gathered - this step has no search access at all, so it's structurally unable to invent a new fact.
 - **Output validation** - every AI response is checked in code, not just trusted: required fields must be present, and a `found: true` result must carry a real source URL, while `found: false` must carry none. Inconsistent output is rejected before the app ever shows it.
 - **CRM sync** - pushes a qualified account into HubSpot as a real Company record, one click.
-- **Automated leads** - a dedicated webhook endpoint lets an external tool (n8n) trigger the full pipeline with zero human interaction. It only ever accepts an exact, already-resolved company number - never a name - so automation can never introduce the ambiguity problem it isn't built to handle.
+- **Automated leads** - a dedicated webhook endpoint lets an external tool (n8n) trigger the full pipeline with zero human interaction. It only ever accepts an exact, already-resolved company number - never a name - because automating a name search would reintroduce the exact ambiguity problem (multiple real companies sharing a name) into a context where nothing is watching to catch it and confirm.
 
 ---
 
 ## Tech stack
 
-React + TypeScript (Vercel) · Node.js + Express (Render) · PostgreSQL (Render) · UK Companies House API · Anthropic Claude API (web search + structured output) · HubSpot API · Clay · n8n · Postman
+React + TypeScript (Vercel) · Node.js + Express (Render) · PostgreSQL (Render) · UK Companies House API · Anthropic Claude API (web search + structured output) · HubSpot API · Clay · n8n 
 
 ---
 
