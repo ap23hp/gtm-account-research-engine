@@ -340,7 +340,9 @@ export default function App() {
         setSyncStatus({
           success: true,
           url: data.hubspot_url,
-          message: "Synced",
+          message: data.updated
+            ? "Existing HubSpot record updated"
+            : "Synced - new HubSpot record created",
         });
       else
         setSyncStatus({ success: false, message: data.error || "Sync failed" });
@@ -943,25 +945,26 @@ export default function App() {
                               ? "Re-run research"
                               : "Research"}
                         </button>
-                     {canSync && (
-  <>
-    {brief?.confidence === "low" && (
-      <p
-        style={{
-          fontSize: 13,
-          color: "var(--text-muted)",
-          margin: "0 0 6px",
-          textAlign: "center",
-        }}
-      >
-        ⚠ Low-confidence signals — no strong urgency found
-      </p>
-    )}
-    <button className="btn-primary" onClick={syncToCrm}>
-      Sync to CRM
-    </button>
-  </>
-)}
+                        {canSync && (
+                          <>
+                            {brief?.confidence === "low" && (
+                              <p
+                                style={{
+                                  fontSize: 13,
+                                  color: "var(--text-muted)",
+                                  margin: "0 0 6px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                ⚠ Low-confidence signals — no strong urgency
+                                found
+                              </p>
+                            )}
+                            <button className="btn-primary" onClick={syncToCrm}>
+                              Sync to CRM
+                            </button>
+                          </>
+                        )}
                         {!canSync &&
                           (scored?.priority === "Priority A" ||
                             scored?.priority === "Priority B") &&
@@ -981,32 +984,32 @@ export default function App() {
                     </div>
                   </div>
 
-                  {syncStatus && (
-                    <p
-                      style={{
-                        marginTop: 14,
-                        fontSize: 14,
-                        color: syncStatus.success
-                          ? "var(--priority-a-fg)"
-                          : "var(--error)",
-                      }}
-                    >
-                      {syncStatus.success ? (
-                        <>
-                          ✓ Synced —{" "}
-                          <a
-                            href={syncStatus.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            view in HubSpot
-                          </a>
-                        </>
-                      ) : (
-                        syncStatus.message
-                      )}
-                    </p>
-                  )}
+             {syncStatus && (
+  <p
+    style={{
+      marginTop: 14,
+      fontSize: 14,
+      color: syncStatus.success
+        ? "var(--priority-a-fg)"
+        : "var(--error)",
+    }}
+  >
+    {syncStatus.success ? (
+      <>
+        ✓ {syncStatus.message} —{" "}
+        <a
+          href={syncStatus.url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          view in HubSpot
+        </a>
+      </>
+    ) : (
+      syncStatus.message
+    )}
+  </p>
+)}
 
                   <div className="result-tabs" style={{ marginTop: 24 }}>
                     {(["overview", "signals", "brief"] as const).map((t) => (
