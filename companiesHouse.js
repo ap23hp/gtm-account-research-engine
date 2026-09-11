@@ -218,7 +218,7 @@ async function searchByIndustry({ sicCodes, incorporatedFrom, size = 20 }) {
     registered_address: item.registered_office_address,
     source: "companies_house",
     confidence: "verified",
-    company_type: item.type,
+    company_type: item.company_type,
   }));
 }
 
