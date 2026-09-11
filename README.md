@@ -55,8 +55,10 @@ They solve different problems a GTM engineer's tooling needs to handle, and are 
 
 ## Integrations
 
-- **[Clay](./integrations/clay)** - a real enrichment table, built in Clay's own interface
-- **[n8n](./integrations/n8n)** - a real workflow with two paths: manual execution with conditional branching, and a webhook node calling this project's live API to trigger the full pipeline automatically
+- **[Clay](./integrations/clay)** - a real enrichment table, built in Clay's own interface, enriching real prospects discovered via `/api/search-industry` with firmographic data (size, industry, LinkedIn).
+- **[n8n](./integrations/n8n)** - two independent workflows: a manual-trigger workflow with conditional branching for testing, and a fully automated production workflow that receives Clay's enrichment completion via an outbound webhook and calls this project's `/api/webhook/new-lead` endpoint to trigger the full research pipeline - closing the loop from discovery to CRM sync without a human moving data between systems.
+
+**End-to-end automated flow:** `/api/search-industry` discovers real prospects → Clay enriches each one (name → verified domain → firmographics) → Clay's outbound webhook fires once enrichment completes → n8n receives it and calls `/api/webhook/new-lead` → Companies House verification, AI research, ICP scoring, and PostgreSQL persistence run exactly as they do for a manual search → the result appears in the app's "Automated leads" tab, tagged and separated from manual searches. Tested end-to-end: full round-trip completes in under 20 seconds once Clay's enrichment finishes.
 
 ---
 
