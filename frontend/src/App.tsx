@@ -370,7 +370,8 @@ export default function App() {
   const showNotFound = mode === "search" && company && !company.found;
   const showResult = mode === "search" && company?.found && !company.ambiguous;
   const canSync =
-    scored?.priority === "Priority A" || scored?.priority === "Priority B";
+    (scored?.priority === "Priority A" || scored?.priority === "Priority B") &&
+    brief !== null;
   const canGoBack =
     showResult &&
     lastAmbiguous &&
@@ -947,6 +948,21 @@ export default function App() {
                             Sync to CRM
                           </button>
                         )}
+                        {!canSync &&
+                          (scored?.priority === "Priority A" ||
+                            scored?.priority === "Priority B") &&
+                          !brief && (
+                            <p
+                              style={{
+                                fontSize: 13,
+                                color: "var(--text-muted)",
+                                margin: 0,
+                                textAlign: "center",
+                              }}
+                            >
+                              Run Research first to enable CRM sync
+                            </p>
+                          )}
                       </div>
                     </div>
                   </div>

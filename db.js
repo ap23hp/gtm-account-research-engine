@@ -24,8 +24,6 @@ async function initDb() {
     )
   `);
 
-  // Handles the case where the table already exists from before -
-  // adds the new columns without losing existing data.
   await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS evidence JSONB`);
   await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS brief JSONB`);
   await pool.query(
@@ -75,4 +73,23 @@ async function getAllLeads() {
   return result.rows;
 }
 
-module.exports = { initDb, saveLead, getLeadsByPriority, getAllLeads };
+// Fetches the most recent saved lead for a given company number, if
+// any exists. Used by /api/sync-to-crm to pull the already-generated
+// AI brief (if Research has been run) before pushing to HubSpot -
+// this route never re-runs Research itself, it only reads what's
+// already been saved.
+async function getLatestLeadByCompanyNumber(companyNumber) {
+  const result = await pool.query(
+    `SELECT * FROM leads WHERE company_number = $1 ORDER BY searched_at DESC LIMIT 1`,
+    [companyNumber],
+  );
+  return result.rows[0] || null;
+}
+
+module.exports = {
+  initDb,
+  saveLead,
+  getLeadsByPriority,
+  getAllLeads,
+  getLatestLeadByCompanyNumber,
+};

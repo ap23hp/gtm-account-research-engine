@@ -1,5 +1,11 @@
 // server.js
-const { initDb, saveLead, getLeadsByPriority, getAllLeads } = require("./db");
+const {
+  initDb,
+  saveLead,
+  getLeadsByPriority,
+  getAllLeads,
+  getLatestLeadByCompanyNumber,
+} = require("./db");
 const express = require("express");
 const { syncCompanyToHubspot } = require("./hubspot");
 const cors = require("cors");
@@ -105,13 +111,20 @@ app.post("/api/sync-to-crm", async (req, res) => {
   try {
     const company = await lookupByNumber(companyNumber);
     const scored = scoreCompany(company);
-    const result = await syncCompanyToHubspot(company, scored);
+
+    // Pull the most recent saved lead for this company, if one
+    // exists, so we can include its AI brief (if Research has been
+    // run) in the HubSpot sync instead of always sending a score-only
+    // record.
+    const savedLead = await getLatestLeadByCompanyNumber(companyNumber);
+    const brief = savedLead?.brief || null;
+
+    const result = await syncCompanyToHubspot(company, scored, brief);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
 // Full AI research pipeline - Companies House -> evidence -> sales brief
 // Triggered manually by the user clicking "Research" in the UI
 app.post("/api/research", async (req, res) => {
