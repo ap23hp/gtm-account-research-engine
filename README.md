@@ -55,10 +55,14 @@ They solve different problems a GTM engineer's tooling needs to handle, and are 
 
 ## Integrations
 
-- **[Clay](./integrations/clay)** - a real enrichment table, built in Clay's own interface, enriching real prospects discovered via `/api/search-industry` with firmographic data (size, industry, LinkedIn).
-- **[n8n](./integrations/n8n)** - two independent workflows: a manual-trigger workflow with conditional branching for testing, and a fully automated production workflow that receives Clay's enrichment completion via an outbound webhook and calls this project's `/api/webhook/new-lead` endpoint to trigger the full research pipeline - closing the loop from discovery to CRM sync without a human moving data between systems.
+## Integrations
 
-**End-to-end automated flow:** `/api/search-industry` discovers real prospects → Clay enriches each one (name → verified domain → firmographics) → Clay's outbound webhook fires once enrichment completes → n8n receives it and calls `/api/webhook/new-lead` → Companies House verification, AI research, ICP scoring, and PostgreSQL persistence run exactly as they do for a manual search → the result appears in the app's "Automated leads" tab, tagged and separated from manual searches. Tested end-to-end: full round-trip completes in under 20 seconds once Clay's enrichment finishes.
+- **[Clay](./integrations/clay)** - a real enrichment table, built in Clay's own interface, enriching real prospects discovered via `/api/search-industry` with firmographic data (size, industry, LinkedIn).
+- **[n8n](./integrations/n8n)** - three workflows: a manual-trigger workflow with conditional branching for testing, a scheduled discovery workflow, and a webhook-triggered workflow that receives Clay's completion signal and calls this project's `/api/webhook/new-lead` endpoint.
+
+**Fully automated pipeline, end to end:** an n8n Schedule Trigger calls `/api/search-industry` daily, filters results to Priority A/B leads only, and sends each qualifying company's name and number into Clay's inbound webhook. Clay resolves a verified domain and enriches the company - if that resolution fails for a given company, Clay reports it honestly rather than guessing, and the pipeline continues regardless, since the Companies House `company_number` (not the enrichment result) is what identifies the company throughout the rest of the pipeline. Once Clay's enrichment step completes - successfully or not - its outbound webhook fires, n8n receives it and calls `/api/webhook/new-lead`, and the full research pipeline runs: Companies House verification, AI research, ICP scoring, and PostgreSQL persistence, exactly as they do for a manual search. The result appears in the app's "Automated leads" tab.
+
+Tested end-to-end across a real batch of 5 discovered companies: every company's identity resolved correctly through the full chain regardless of whether Clay's enrichment succeeded, confirming enrichment is treated as supplementary data, never as the source of truth for company identity. Individual pipeline runs completed in 12-32 seconds.
 
 ---
 
