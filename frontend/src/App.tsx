@@ -943,11 +943,25 @@ export default function App() {
                               ? "Re-run research"
                               : "Research"}
                         </button>
-                        {canSync && (
-                          <button className="btn-primary" onClick={syncToCrm}>
-                            Sync to CRM
-                          </button>
-                        )}
+                     {canSync && (
+  <>
+    {brief?.confidence === "low" && (
+      <p
+        style={{
+          fontSize: 13,
+          color: "var(--text-muted)",
+          margin: "0 0 6px",
+          textAlign: "center",
+        }}
+      >
+        ⚠ Low-confidence signals — no strong urgency found
+      </p>
+    )}
+    <button className="btn-primary" onClick={syncToCrm}>
+      Sync to CRM
+    </button>
+  </>
+)}
                         {!canSync &&
                           (scored?.priority === "Priority A" ||
                             scored?.priority === "Priority B") &&
