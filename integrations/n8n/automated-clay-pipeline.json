@@ -1,0 +1,71 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "9c4e2f90-b8ce-4271-ae41-87c8c21f72ba",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9227e888-4e01-4ea7-a55e-7fc707c27a3d",
+      "name": "Webhook",
+      "webhookId": "9c4e2f90-b8ce-4271-ae41-87c8c21f72ba"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gtm-account-research-engine.onrender.com/api/webhook/new-lead",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "companyNumber",
+              "value": "={{$json.body.company_number}}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "7fced75b-28c0-4c42-a616-7545128a9fa6",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "eeee7c70-e122-454a-82cc-f957a8977d7d",
+  "meta": {
+    "instanceId": "d9169a3f3e0a661fe5128902738ffbd5100579ca8ac626a8f2f04738e3a71b6a"
+  },
+  "nodeGroups": [],
+  "id": "kOozebKFQZui3RH2",
+  "tags": []
+}
