@@ -15,6 +15,35 @@ function authHeader() {
   return { Authorization: `Basic ${encoded}` };
 }
 
+// Normalizes a company name for comparison: lowercases it, strips
+// common suffixes (Limited/Ltd/PLC/LLP) and punctuation, so
+// "Deliveroo Limited" and "DELIVEROO LTD." compare as equal.
+//
+// This exists because Companies House's free-text search is fuzzy -
+// it returns any company whose name loosely relates to the query,
+// not just exact matches. Without this normalization step, the
+// ambiguity check below would treat every loosely-related active
+// company in the search results as a "candidate", which made almost
+// every search look ambiguous even when only one real match existed.
+//
+// Trade-off, worth being explicit about: stripping the suffix means
+// "Acme LLP" and "Acme PLC" would normalize to the same string, even
+// though they are legally distinct registered entities. That's an
+// acceptable simplification for this name-matching convenience layer,
+// but it means normalized equality is NOT a legal identity check.
+// The company_number remains the actual stable identifier throughout
+// this app - lookupByNumber() (used by the automated/webhook path)
+// never goes through this normalization at all, which is why
+// automation is fully unambiguous while name-based search only
+// narrows the field before flagging for human review.
+function normalizeCompanyName(name) {
+  return name
+    .toLowerCase()
+    .replace(/\b(limited|ltd|plc|llp)\b\.?/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
 // STEP 1: search by name -> get a short list of possible matches
 async function searchCompany(companyName) {
   const url = `${BASE_URL}/search/companies?q=${encodeURIComponent(companyName)}&items_per_page=20`;
@@ -63,37 +92,70 @@ async function lookupCompany(companyName) {
     };
   }
 
-  if (activeMatches.length > 1) {
-    // Genuine ambiguity - don't guess, flag it for human review
+  // Companies House's search is fuzzy, so activeMatches can include
+  // companies that only loosely relate to what was typed. Before
+  // deciding whether this is a genuine ambiguity, narrow down to
+  // companies whose (normalized) name actually equals the query -
+  // this is the real "same name, different company" case (e.g.
+  // multiple real "Deliveroo" entities), not search noise.
+  const searchNormalized = normalizeCompanyName(companyName);
+  const exactMatches = activeMatches.filter(
+    (m) => normalizeCompanyName(m.title) === searchNormalized,
+  );
+
+  if (exactMatches.length > 1) {
+    // Genuine ambiguity - multiple real, active companies share this
+    // exact name. Don't guess, flag it for human review.
     return {
       found: true,
       ambiguous: true,
       confidence: "ambiguous",
-      candidates: activeMatches.map((m) => ({
+      candidates: exactMatches.map((m) => ({
         company_name: m.title,
         company_number: m.company_number,
         address: m.address_snippet,
       })),
-      reason: `${activeMatches.length} active companies match "${companyName}" - needs manual selection`,
+      reason: `${exactMatches.length} active companies share the exact name "${companyName}" - needs manual selection`,
     };
   }
 
-  // Exactly one active match - safe to auto-select
-  const best = activeMatches[0];
-  const profile = await getCompanyProfile(best.company_number);
+  if (exactMatches.length === 1) {
+    // Exactly one exact-name match - safe to auto-select.
+    const best = exactMatches[0];
+    const profile = await getCompanyProfile(best.company_number);
 
+    return {
+      found: true,
+      ambiguous: false,
+      company_name: profile.company_name,
+      company_number: profile.company_number,
+      status: profile.company_status,
+      incorporated_on: profile.date_of_creation,
+      sic_codes: profile.sic_codes || [],
+      registered_address: profile.registered_office_address,
+      source: "companies_house",
+      confidence: "verified",
+      company_type: profile.type,
+    };
+  }
+
+  // No exact-name match, but the fuzzy search still returned other
+  // active companies (e.g. a trading name that differs from the
+  // registered name - see the Dogma Group case). We genuinely don't
+  // know which, if any, is the right one, so we surface the closest
+  // candidates for human review rather than guessing - but flag this
+  // as a distinct case from "same exact name, multiple entities",
+  // since the underlying reason for ambiguity is different.
   return {
     found: true,
-    ambiguous: false,
-    company_name: profile.company_name,
-    company_number: profile.company_number,
-    status: profile.company_status,
-    incorporated_on: profile.date_of_creation,
-    sic_codes: profile.sic_codes || [],
-    registered_address: profile.registered_office_address,
-    source: "companies_house",
-    confidence: "verified",
-    company_type: profile.type,
+    ambiguous: true,
+    confidence: "low",
+    candidates: activeMatches.map((m) => ({
+      company_name: m.title,
+      company_number: m.company_number,
+      address: m.address_snippet,
+    })),
+    reason: `No company found with the exact name "${companyName}" - showing the closest active matches for manual selection`,
   };
 }
 
