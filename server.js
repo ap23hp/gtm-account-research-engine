@@ -25,6 +25,18 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// How many days a saved brief is considered "fresh enough" to reuse
+// instead of re-spending on Anthropic (web search + brief generation).
+// Signals like hiring/funding news don't meaningfully change day to
+// day, so re-running the same company daily was pure waste.
+const RESEARCH_CACHE_DAYS = 7;
+
+function isRecent(dateValue, days) {
+  if (!dateValue) return false;
+  const ageMs = Date.now() - new Date(dateValue).getTime();
+  return ageMs < days * 24 * 60 * 60 * 1000;
+}
+
 app.get("/api/lookup", async (req, res) => {
   const companyName = req.query.name;
   if (!companyName) {
@@ -125,6 +137,7 @@ app.post("/api/sync-to-crm", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // Full AI research pipeline - Companies House -> evidence -> sales brief
 // Triggered manually by the user clicking "Research" in the UI
 app.post("/api/research", async (req, res) => {
@@ -141,6 +154,24 @@ app.post("/api/research", async (req, res) => {
       return res
         .status(400)
         .json({ error: "Company must be a clean, resolved match to research" });
+    }
+
+    // Reuse a recent brief instead of paying for Anthropic again if
+    // this company was already researched within RESEARCH_CACHE_DAYS.
+    const existing = await getLatestLeadByCompanyNumber(companyNumber);
+    if (
+      existing &&
+      existing.brief &&
+      isRecent(existing.searched_at, RESEARCH_CACHE_DAYS)
+    ) {
+      return res.json({
+        company,
+        scored,
+        evidence: existing.evidence,
+        brief: existing.brief,
+        cached: true,
+        searched_at: existing.searched_at,
+      });
     }
 
     const evidence = await gatherEvidence(company.company_name);
@@ -170,6 +201,26 @@ app.post("/api/webhook/new-lead", async (req, res) => {
       return res
         .status(400)
         .json({ error: "Company must be a clean, resolved match" });
+    }
+
+    // Same cache check as /api/research - this is the route the daily
+    // n8n schedule actually calls, so this is what stops it re-paying
+    // for the same 5 companies every run.
+    const existing = await getLatestLeadByCompanyNumber(companyNumber);
+    if (
+      existing &&
+      existing.brief &&
+      isRecent(existing.searched_at, RESEARCH_CACHE_DAYS)
+    ) {
+      return res.json({
+        received: true,
+        company,
+        scored,
+        evidence: existing.evidence,
+        brief: existing.brief,
+        cached: true,
+        searched_at: existing.searched_at,
+      });
     }
 
     const evidence = await gatherEvidence(company.company_name);
